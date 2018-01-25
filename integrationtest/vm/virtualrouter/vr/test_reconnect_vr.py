@@ -25,14 +25,23 @@ _config_ = {
 session_uuid = None
 test_stub = test_lib.lib_get_test_stub()
 
+#test reconnect vr
 def test():
+    #define global variable--session_uuid
     global session_uuid
+    #get the login session_uuid
     session_uuid = acc_ops.login_as_admin()
+    #get the value of the environment variable(l3VlanNetworkName1)
     l3_1_name = os.environ.get('l3VlanNetworkName1')
+    #get l3network inventory by l3_1_name
     l3_1 = test_lib.lib_get_l3_by_name(l3_1_name)
 
     #create VRs.
+    #get all VRs, which has vnic belongs to l3_1
     vrs = test_lib.lib_find_vr_by_l3_uuid(l3_1.uuid)
+    #if vr does not exist
+    #create vm and get a vr, which has vnic belongs to vm's private l3network
+    #otherwise, get a vr from vrs list
     if not vrs:
         vm = test_stub.create_vlan_vm(l3_name=l3_1_name)
         vm.destroy()
@@ -40,10 +49,16 @@ def test():
     else:
         vr1 = vrs[0]
 
+    #reconnect vr
     vm_ops.reconnect_vr(vr1.uuid)
-
+ 
+    #generate query conditions:uuid = vr1.uuid
     cond = res_ops.gen_query_conditions('uuid', '=', vr1.uuid) 
+    #QueryVmInstance with conditions
     vms = res_ops.query_resource(res_ops.VM_INSTANCE, cond)
+    #judge the vr status
+    #if status != 'Connected', record test log and test result,throw exception
+    #otherwise, test pass:print msg,record test log and test result
     if not vms[0].status == 'Connected':
         test_util.test_fail('VR VM: %s is not connected' % vr1.uuid)
 
@@ -51,4 +66,5 @@ def test():
 
 def error_cleanup():
     global session_uuid
+    #logout when error occurred
     acc_ops.logout(session_uuid)

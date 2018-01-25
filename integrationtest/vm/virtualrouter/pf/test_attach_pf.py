@@ -18,37 +18,54 @@ test_stub = test_lib.lib_get_test_stub()
 test_obj_dict = test_state.TestStateDict()
 
 def test():
+    #create vm and add to dict
     pf_vm1 = test_stub.create_dnat_vm()
     test_obj_dict.add_vm(pf_vm1)
 
     pf_vm2 = test_stub.create_dnat_vm()
     test_obj_dict.add_vm(pf_vm2)
 
+    #get the value of the environment variable
+    #according to the specified variable value to create vr 
     l3_name = os.environ.get('l3VlanNetworkName1')
     vr1 = test_stub.create_vr_vm(test_obj_dict, l3_name)
 
     l3_name = os.environ.get('l3NoVlanNetworkName1')
     vr2 = test_stub.create_vr_vm(test_obj_dict, l3_name)
 
+    #get vr's public nic IP
     vr1_pub_ip = test_lib.lib_find_vr_pub_ip(vr1)
     vr2_pub_ip = test_lib.lib_find_vr_pub_ip(vr2)
     
+    #check vm state
     pf_vm1.check()
     pf_vm2.check()
 
+    #get vmNics inventory and vmNics uuid of pf_vm1,pf_vm2
     vm_nic1 = pf_vm1.vm.vmNics[0]
     vm_nic_uuid1 = vm_nic1.uuid
     vm_nic2 = pf_vm2.vm.vmNics[0]
     vm_nic_uuid2 = vm_nic2.uuid
+    #get pf_vm1's l3NetworkUuid 
     pri_l3_uuid = vm_nic1.l3NetworkUuid
+    #get a vr, which has vnic belongs to pf_vm1's l3NetworkUuid
     vr = test_lib.lib_find_vr_by_l3_uuid(pri_l3_uuid)[0]
+    #get vr's public nic
     vr_pub_nic = test_lib.lib_find_vr_pub_nic(vr)
+    #get vr's public l3NetworkUuid
     l3_uuid = vr_pub_nic.l3NetworkUuid
+    #specify network to create vip and add it to dict
     vip = test_stub.create_vip('pf_attach_test', l3_uuid)
     test_obj_dict.add_vip(vip)
+    #get vip uuid
     vip_uuid = vip.get_vip().uuid
 
+    #generate Portfowarding rule creation option
     #pf_creation_opt = PfRule.generate_pf_rule_option(vr1_pub_ip, protocol=inventory.TCP, vip_target_rule=Port.rule1_ports, private_target_rule=Port.rule1_ports)
+    #use this option to create Portfowarding rule
+    #after pf is create,add pf to list,set vip state and network service
+    #pf_creation_opt1 allowedCidr:vr1_pub_ip/32
+    #pf_creation_opt2 allowedCidr:vr2_pub_ip/32
     pf_creation_opt1 = PfRule.generate_pf_rule_option(vr1_pub_ip, protocol=inventory.TCP, vip_target_rule=Port.rule4_ports, private_target_rule=Port.rule4_ports, vip_uuid=vip_uuid)
     test_pf1 = zstack_pf_header.ZstackTestPortForwarding()
     test_pf1.set_creation_option(pf_creation_opt1)
@@ -60,32 +77,47 @@ def test():
     test_pf2.set_creation_option(pf_creation_opt2)
     test_pf2.create()
     vip.attach_pf(test_pf2)
-
+    
+    #check pf_vm1,vip
     pf_vm1.check()
     vip.check()
 
+    #Attach Port Forwarding To Vm
+    #attach test_pf1 to pf_vm1,attach test_pf2 to pf_vm2
+    #check vip state
     test_pf1.attach(vm_nic_uuid1, pf_vm1)
     test_pf2.attach(vm_nic_uuid2, pf_vm2)
     vip.check()
 
+    #stop pf_vm1 and check vip
     pf_vm1.stop()
     vip.check()
-
+    
+    #detach Port Forwarding test_pf1 From pf_vm1
     test_pf1.detach()
+    #attach test_pf1 to pf_vm2
     test_pf1.attach(vm_nic_uuid2, pf_vm2)
+    #start pf_vm1,check pf_vm1 and vip
     pf_vm1.start()
     pf_vm1.check()
     vip.check()
 
+    #stop pf_vm1
     pf_vm1.stop()
+    #detach Port Forwarding test_pf1 From pf_vm2
+    #detach Port Forwarding test_pf2 From pf_vm2
     test_pf1.detach()
     test_pf2.detach()
+    #attach test_pf1 to pf_vm1
+    #attach test_pf2 to pf_vm1
     test_pf1.attach(vm_nic_uuid1, pf_vm1)
     test_pf2.attach(vm_nic_uuid1, pf_vm1)
+    #start pf_vm1,check pf_vm1 and vip
     pf_vm1.start()
     pf_vm1.check()
     vip.check()
-
+    
+    #delete vip,destroy vm and deal with all dict,that is,cleanup
     vip.delete()
     test_obj_dict.rm_vip(vip)
     pf_vm1.destroy()
@@ -93,9 +125,11 @@ def test():
     pf_vm2.destroy()
     test_obj_dict.rm_vm(pf_vm2)
 
+    #print msg,record test log and test result
     test_util.test_pass("Test Port Forwarding Attach/Detach Successfully")
 
 #Will be called only if exception happens in test().
 def error_cleanup():
     global test_obj_dict
+    #clean up the environment when error occurred
     test_lib.lib_error_cleanup(test_obj_dict)
