@@ -28,6 +28,7 @@ import threading
 import uuid
 import os
 import time
+import json
 import simplejson
 import zstackwoodpecker.operations.deploy_operations as dep_ops
 
@@ -37,7 +38,7 @@ CP_PATH = "/ceph/primarystorage/volume/cp"
 _config_ = {
         'timeout' : 24*60*60+1200,
         'noparallel' : False,
-        'noparallelkey': [ CREATE_SNAPSHOT_PATH, CP_PATH ]
+        #'noparallelkey': [ CREATE_SNAPSHOT_PATH, CP_PATH ]
         }
 
 
@@ -70,7 +71,16 @@ def test():
 
     agent_url = flavor['agent_url']
     agent_time = flavor['agent_time']
-    script = '{entity -> sleep(%s)}' % (agent_time)
+    while True:
+        rsp = dep_ops.json_post("http://127.0.0.1:8888/test/api/v1.0/tokens/create", simplejson.dumps({"comment": ""}))
+        rsp_json = json.loads(rsp)
+        if rsp_json != None and rsp_json.has_key('token'):
+            token_id = rsp_json['token']
+            break
+        test_util.test_logger('Try get required token')
+        time.sleep(1)
+    test_util.test_logger('Get required token %s' % (token_id))
+    script = '{entity -> def del = new URL(\"http://127.0.0.1:8888/test/api/v1.0/tokens/%s\").openConnection(); del.setRequestMethod(\"DELETE\");def delRC = del.getResponseCode();if (!delRC.equals(200)) {throw new Exception(\"shuang\")}; sleep(%s)}' % (token_id, agent_time)
     dep_ops.remove_simulator_agent_script(agent_url)
     dep_ops.deploy_simulator_agent_script(agent_url, script)
     image_creation_option = test_util.ImageOption()
