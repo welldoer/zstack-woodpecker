@@ -17,6 +17,13 @@ import optparse
 import tempfile
 import xml.etree.cElementTree as etree
 import subprocess
+import atexit
+
+print 'start test rest server'
+try:
+    process = subprocess.Popen("./test_rest_server.py", cwd=os.path.dirname(os.path.abspath(__file__)), universal_newlines=True)
+except:
+    print 'failed to start test rest server'
 
 TEST_CASE_SIGN = "grep 'def test()'"
 INTEGRATION_TEST_FOLDER = 'integrationtest/vm/'
@@ -37,6 +44,15 @@ CONFIG_XML='config_xml'
 LOCAL_CONFIG_FOLDER = '%s/.zstackwoodpecker/%s' % \
         (os.path.expanduser('~'), INTEGRATION_TEST_FOLDER)
 TEST_CONFIG_FILE = 'test-config.xml'
+
+def kill_test_rest_server():
+    try:
+        #process.kill()
+        os.system('kill -9 -%s' % (process.sid))
+    except:
+        print_info('ignore failure kill test rest server')
+
+atexit.register(kill_test_rest_server)
 
 def set_env_param(debug):
     '''
@@ -887,4 +903,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
