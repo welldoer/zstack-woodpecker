@@ -2355,11 +2355,13 @@ def deploy_simulator_agent_script(url_path, script):
     mn_ip = res_ops.query_resource(res_ops.MANAGEMENT_NODE)[0].hostName
     url = "http://%s:8080/zstack/simulators/agent-pre-handlers/add" % (mn_ip)
     ret = json_post(url, simplejson.dumps(data))
+    return ret
 
 def remove_simulator_agent_script(url_path):
     mn_ip = res_ops.query_resource(res_ops.MANAGEMENT_NODE)[0].hostName
     url = "http://%s:8080/zstack/simulators/agent-pre-handlers/remove" % (mn_ip)
     ret = json_post(url, url_path)
+    return ret
 
 def deploy_initial_database(deploy_config, scenario_config = None, scenario_file = None):
     operations = [

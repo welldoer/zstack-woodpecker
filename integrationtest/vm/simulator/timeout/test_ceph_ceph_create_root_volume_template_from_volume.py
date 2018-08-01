@@ -67,12 +67,8 @@ def test():
     if len(ceph_pss) == 0:
         test_util.test_skip('Required ceph ps to test')
     ps_uuid = ceph_pss[0].uuid
-    vm = test_stub.create_vm(image_uuid=image_uuid, ps_uuid=ps_uuid)
-
-    agent_url = flavor['agent_url']
-    agent_time = flavor['agent_time']
     while True:
-        rsp = dep_ops.json_post("http://127.0.0.1:8888/test/api/v1.0/tokens/create", simplejson.dumps({"comment": ""}))
+        rsp = dep_ops.json_post("http://127.0.0.1:8888/test/api/v1.0/tokens/create", simplejson.dumps({"comment": flavor}))
         rsp_json = json.loads(rsp)
         if rsp_json != None and rsp_json.has_key('token'):
             token_id = rsp_json['token']
@@ -80,9 +76,18 @@ def test():
         test_util.test_logger('Try get required token')
         time.sleep(1)
     test_util.test_logger('Get required token %s' % (token_id))
+    dep_ops.remove_simulator_agent_script(CREATE_SNAPSHOT_PATH)
+    dep_ops.remove_simulator_agent_script(CP_PATH)
+
+    vm = test_stub.create_vm(image_uuid=image_uuid, ps_uuid=ps_uuid)
+
+    agent_url = flavor['agent_url']
+    agent_time = flavor['agent_time']
     script = '{entity -> def del = new URL(\"http://127.0.0.1:8888/test/api/v1.0/tokens/%s\").openConnection(); del.setRequestMethod(\"DELETE\");def delRC = del.getResponseCode();if (!delRC.equals(200)) {throw new Exception(\"shuang\")}; sleep(%s)}' % (token_id, agent_time)
-    dep_ops.remove_simulator_agent_script(agent_url)
-    dep_ops.deploy_simulator_agent_script(agent_url, script)
+    print 'reload agent'
+    print dep_ops.remove_simulator_agent_script(agent_url)
+    print 'install agent'
+    print dep_ops.deploy_simulator_agent_script(agent_url, script)
     image_creation_option = test_util.ImageOption()
     bss = res_ops.query_resource(res_ops.CEPH_BACKUP_STORAGE, [])
     if len(bss) == 0:
@@ -96,6 +101,7 @@ def test():
 
     image = zstack_image_header.ZstackTestImage()
     image.set_creation_option(image_creation_option)
+    #time.sleep(10)
     start = time.time()
     image.create()
     end = time.time()
@@ -103,8 +109,8 @@ def test():
         test_util.test_fail('execution time too short %s' % (end - start))
 
 def env_recover():
-    global agent_url
-    dep_ops.remove_simulator_agent_script(agent_url)
+    #global agent_url
+    #dep_ops.remove_simulator_agent_script(agent_url)
     global vm
     if vm != None:
         vm.destroy()

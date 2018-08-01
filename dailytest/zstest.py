@@ -21,6 +21,7 @@ import atexit
 
 print 'start test rest server'
 try:
+    os.system('pkill -9 ./test_rest_server.py')
     process = subprocess.Popen("./test_rest_server.py", cwd=os.path.dirname(os.path.abspath(__file__)), universal_newlines=True)
 except:
     print 'failed to start test rest server'
@@ -48,6 +49,7 @@ TEST_CONFIG_FILE = 'test-config.xml'
 def kill_test_rest_server():
     try:
         #process.kill()
+        os.system('pkill -9 ./test_rest_server.py')
         os.system('kill -9 -%s' % (process.sid))
     except:
         print_info('ignore failure kill test rest server')
